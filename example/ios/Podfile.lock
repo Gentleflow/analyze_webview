@@ -1,0 +1,22 @@
+PODS:
+  - analyze_webview (0.0.1):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - analyze_webview (from `.symlinks/plugins/analyze_webview/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  analyze_webview:
+    :path: ".symlinks/plugins/analyze_webview/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  analyze_webview: 4553114582665cd827a63cf5704eb707db325c24
+  Flutter: 0e3d915762c693b495b44d77113d4970485de6ec
+
+PODFILE CHECKSUM: aafe91acc616949ddb318b77800a7f51bffa2a4c
+
+COCOAPODS: 1.10.0
