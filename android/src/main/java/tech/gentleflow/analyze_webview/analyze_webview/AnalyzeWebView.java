@@ -2,6 +2,7 @@ package tech.gentleflow.analyze_webview.analyze_webview;
 
 import android.content.Context;
 import android.net.http.SslError;
+import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.SslErrorHandler;
@@ -25,12 +26,22 @@ class AnalyzeWebView extends WebView {
 
     static String JS = "document.documentElement.outerHTML";
 
-    private ResultListener mResultListener;
+    private final String mSourceRegex;
 
-    public AnalyzeWebView(Context context, String userAgent, final String sourceRegex) {
+    private ResultListener mResultListener;
+    private Runnable mTimeoutRunnable;
+    private Handler mHandler;
+
+    private int mEvaluateJsCount = 0;
+
+    public AnalyzeWebView(Context context, String userAgent, String sourceRegex) {
         super(context);
 
         Log.e("AnalyzeWebView", "init");
+
+        this.mSourceRegex = sourceRegex;
+
+        mHandler = new Handler();
 
         WebSettings settings = getSettings();
         settings.setJavaScriptEnabled(true);
@@ -38,36 +49,24 @@ class AnalyzeWebView extends WebView {
         settings.setBlockNetworkImage(true);
         settings.setUserAgentString(userAgent);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
         setWebViewClient(new WebViewClient() {
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 Log.e("AnalyzeWebView", "onPageFinished");
-                if (TextUtils.isEmpty(sourceRegex)) {
-                    evaluateJavascript(JS, new ValueCallback<String>() {
-                        @Override
-                        public void onReceiveValue(String value) {
-                            String content = StringEscapeUtils.unescapeJson(value)
-                                    .replace("^\"|\"$", "");
-                            if (mResultListener != null) {
-                                mResultListener.onResult(content);
-                            }
-                        }
-                    });
+                if (TextUtils.isEmpty(mSourceRegex)) {
+                    evaluateGetHtml();
                 }
             }
 
             @Override
             public void onLoadResource(WebView view, String url) {
                 super.onLoadResource(view, url);
-                Log.e("AnalyzeWebView", "onLoadResource " + url);
-                if (!TextUtils.isEmpty(sourceRegex)) {
-                    if (url.matches(sourceRegex)) {
-                        if (mResultListener != null) {
-                            mResultListener.onResult(url);
-                        }
+//                Log.e("AnalyzeWebView", "onLoadResource " + url);
+                if (!TextUtils.isEmpty(mSourceRegex)) {
+                    if (url.matches(mSourceRegex)) {
+                        onResult(url);
                     }
                 }
             }
@@ -90,6 +89,65 @@ class AnalyzeWebView extends WebView {
                 Log.e("AnalyzeWebView", "onReceivedError " + request.getUrl() + " :" + errorResponse.getStatusCode());
             }
         });
+    }
+
+    @Override
+    public void loadUrl(String url) {
+        super.loadUrl(url);
+        mTimeoutRunnable = new Runnable() {
+            @Override
+            public void run() {
+                Log.e("AnalyzeWebView", "mTimeoutRunnable");
+                mTimeoutRunnable = null;
+                if (TextUtils.isEmpty(mSourceRegex)) {
+                    evaluateGetHtml();
+                } else {
+                    onResult("请求失败");
+                }
+            }
+        };
+        mHandler.postDelayed(mTimeoutRunnable, 30 * 1000);
+        Log.e("AnalyzeWebView", "loadUrl");
+    }
+
+    private void evaluateGetHtml() {
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mEvaluateJsCount++;
+                Log.e("AnalyzeWebView", "evaluateGetHtml" + mEvaluateJsCount);
+                evaluateJavascript(JS, new ValueCallback<String>() {
+                    @Override
+                    public void onReceiveValue(String value) {
+                        String content = StringEscapeUtils.unescapeJson(value)
+                                .replace("^\"|\"$", "");
+                        if (TextUtils.isEmpty(content)) {
+                            if (mEvaluateJsCount >= 10) {
+                                onResult("请求失败");
+                            } else {
+                                evaluateGetHtml();
+                            }
+                        } else {
+                            onResult(content);
+                        }
+                    }
+                });
+            }
+        }, 1000);
+    }
+
+    private void onResult(String result) {
+        if (mResultListener != null) {
+            mResultListener.onResult(result);
+        }
+    }
+
+    @Override
+    public void destroy() {
+        mHandler.removeCallbacksAndMessages(null);
+        mHandler = null;
+        stopLoading();
+        super.destroy();
     }
 
     public void setResultListener(ResultListener resultListener) {

@@ -18,7 +18,9 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
     
     var timer : Timer? = nil
     
+    var getHtmlTimer : Timer? = nil
     
+    var getHtmlCount = 0
 
     init(frame: CGRect, userAgent:String?, sourceRegex:String?, resultDeleage:AnalyzeResultDeleage?, configuration:WKWebViewConfiguration) {
         
@@ -26,8 +28,12 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
         self.resultDeleage = resultDeleage
         self.sourceRegex = sourceRegex
         if #available(iOS 10.0, *) {
-            self.timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(40), repeats: false, block: {(timer) in
-                self.onResult(result: "请求超时")
+            self.timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(30), repeats: false, block: {(timer) in
+                if sourceRegex == nil || sourceRegex!.isEmpty {
+                    self.evaluateGetHtml()
+                } else {
+                    self.onResult(result: "请求失败")
+                }
             })
         }
         navigationDelegate = self
@@ -78,10 +84,39 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         print("AnalyzeWebView swift 加载完成 " + webView.url!.absoluteString)
         if sourceRegex == nil || sourceRegex!.isEmpty {
-            evaluateJavaScript("document.documentElement.outerHTML"){(data,error) in
+            evaluateGetHtml()
+        }
+    }
+    
+    func evaluateGetHtml() {
+        if #available(iOS 10.0, *){
+            self.getHtmlTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(1), repeats: true, block: {(timer) in
+                self.evaluateJavaScript("document.documentElement.outerHTML.toString()"){(data,error) in
+                    self.getHtmlCount = self.getHtmlCount + 1
+                    print("evaluateGetHtml \(self.getHtmlCount)")
+                    if data != nil {
+                        let data = data as! String
+                        if data == "<html><head></head><body></body></html>" {
+                            if self.getHtmlCount >= 10 {
+                                self.onResult(result: "请求失败")
+                            }
+                        } else {
+                            self.onResult(result: data)
+                        }
+                    } else {
+                        if self.getHtmlCount >= 10 {
+                            self.onResult(result: "请求失败")
+                        }
+                    }
+                }
+            })
+        } else {
+            self.evaluateJavaScript("document.documentElement.outerHTML.toString()"){(data,error) in
                 if data != nil{
                     let data = data as! String
                     self.onResult(result: data)
+                } else {
+                    self.onResult(result: "请求失败")
                 }
             }
         }
@@ -134,6 +169,7 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
         configuration.userContentController.removeScriptMessageHandler(forName: JAVASCRIPT_BRIDGE_NAME)
         removeObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress),context: nil)
         self.timer?.invalidate()
+        self.getHtmlTimer?.invalidate()
         navigationDelegate = nil
         uiDelegate = nil
         removeFromSuperview()

@@ -28,17 +28,12 @@ class AnalyzeWebViewManager:NSObject,AnalyzeResultDeleage, WKScriptMessageHandle
     
     var webView : AnalyzeWebView? = nil
     
-    var session :URLSession? = nil
-    
-    var holdUrlSchemeTasks : [Int : URLSessionDataTask] = [:]
-    
     var sourceRegex : String? = nil
     
     var isDisopse = false
     
     init(userAgent:String?, sourceRegex:String?, flutterResult: @escaping FlutterResult) {
         super.init()
-        self.session = URLSession.init(configuration: URLSessionConfiguration.default)
         self.flutterResult = flutterResult
         self.sourceRegex = sourceRegex
         let configuration = WKWebViewConfiguration()
@@ -46,7 +41,9 @@ class AnalyzeWebViewManager:NSObject,AnalyzeResultDeleage, WKScriptMessageHandle
         configuration.processPool = WKProcessPoolManager.sharedProcessPool
         configuration.preferences.javaScriptEnabled = true
         configuration.preferences.minimumFontSize = 9.0
-        
+        if #available(iOS 13.0, *) {
+            configuration.defaultWebpagePreferences.preferredContentMode = WKWebpagePreferences.ContentMode.desktop
+        }
         configuration.userContentController.add(self,name: JAVASCRIPT_BRIDGE_NAME)
         configuration.userContentController.addUserScript(WKUserScript.init(source: ON_LOAD_RES_JS, injectionTime: .atDocumentStart, forMainFrameOnly: false))
         if #available(iOS 14.0, *) {
@@ -79,12 +76,6 @@ class AnalyzeWebViewManager:NSObject,AnalyzeResultDeleage, WKScriptMessageHandle
     
     func onResult(result: String) {
         print("AnalyzeWebViewManager onResult")
-        holdUrlSchemeTasks.forEach { key,task in
-            task.cancel()
-        }
-        holdUrlSchemeTasks.removeAll()
-        session?.finishTasksAndInvalidate()
-        session = nil
         isDisopse = true
         flutterResult?(result)
         webView = nil
