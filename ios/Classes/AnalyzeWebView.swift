@@ -43,7 +43,6 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
         myView!.autoresizesSubviews = true
         myView!.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         myView!.addSubview(self)
-        addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
         myView!.frame = frame
         if let keyWindow = UIApplication.shared.keyWindow {
             keyWindow.insertSubview(myView!, at: 0)
@@ -150,13 +149,6 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
         decisionHandler(.allow)
     }
     
-    public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == #keyPath(WKWebView.estimatedProgress) {
-            let progress = Int(estimatedProgress * 100)
-            print("AnalyzeWebView swift 进度\(progress)")
-        }
-    }
-    
     func onResult(result : String) {
         print("AnalyzeWebView swift onResult")
         resultDeleage?.onResult(result: result)
@@ -167,7 +159,6 @@ public class AnalyzeWebView: WKWebView, WKNavigationDelegate, WKUIDelegate{
         stopLoading()
         configuration.userContentController.removeAllUserScripts()
         configuration.userContentController.removeScriptMessageHandler(forName: JAVASCRIPT_BRIDGE_NAME)
-        removeObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress),context: nil)
         self.timer?.invalidate()
         self.getHtmlTimer?.invalidate()
         navigationDelegate = nil

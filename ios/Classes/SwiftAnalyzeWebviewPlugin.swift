@@ -22,6 +22,10 @@ public class SwiftAnalyzeWebviewPlugin: NSObject, FlutterPlugin {
         let url = params["url"] as! String
         let userAgent = params["userAgent"] as? String
         let sourceRegex = params["sourceRegex"] as? String
+        if url == "" {
+            result("请求失败")
+            return
+        }
         
         let webViewManager = AnalyzeWebViewManager.init(userAgent: userAgent, sourceRegex: sourceRegex, flutterResult: result)
         webViewManager.loadUrl(url: url)
