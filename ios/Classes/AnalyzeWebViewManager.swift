@@ -55,7 +55,11 @@ class AnalyzeWebViewManager:NSObject,AnalyzeResultDeleage, WKScriptMessageHandle
     }
     
     func loadUrl(url:String) {
-        webView?.load(URLRequest.init(url: URL.init(string: url)!))
+        let str  = url.addingPercentEncoding( withAllowedCharacters: .urlQueryAllowed) ?? url
+        let uri = URL.init(string: str)
+        if uri != nil {
+            webView?.load(URLRequest.init(url: uri!))
+        }
     }
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
