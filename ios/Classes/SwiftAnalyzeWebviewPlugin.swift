@@ -28,7 +28,7 @@ public class SwiftAnalyzeWebviewPlugin: NSObject, FlutterPlugin {
         }
         
         let webViewManager = AnalyzeWebViewManager.init(userAgent: userAgent, sourceRegex: sourceRegex, flutterResult: result)
-        webViewManager.loadUrl(url: "https://www.chaofanxs.com/user/search.html")
+        webViewManager.loadUrl(url: url)
         print("AnalyzeWebView swift run end ")
     }
 }
